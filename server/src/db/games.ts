@@ -67,6 +67,12 @@ export async function findActiveByCode(db: Queryable, code: string): Promise<Gam
   return r.rows[0] ? toGame(r.rows[0]) : null;
 }
 
+/** True when some game (finished and cancelled ones included) ever used this code. */
+export async function codeWasUsed(db: Queryable, code: string): Promise<boolean> {
+  const r = await db.query('SELECT 1 FROM games WHERE code = $1 LIMIT 1', [code]);
+  return (r.rowCount ?? 0) > 0;
+}
+
 export async function saveGame(db: Queryable, g: GameRecord): Promise<void> {
   await db.query(
     `UPDATE games SET status = $2, step = $3, current_index = $4,

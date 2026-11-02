@@ -1,0 +1,15 @@
+{
+  "name": "quiz-night",
+  "private": true,
+  "type": "module",
+  "workspaces": ["server", "web"],
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}

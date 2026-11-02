@@ -51,6 +51,8 @@ export class GameService {
   private readonly now: () => number;
   private readonly publish: (gameId: string) => void;
   private readonly onTeamRemoved: (gameId: string, teamId: string) => void;
+  /** token → gameId, filled by join/session, so answer() can queue on the game lock without a DB round trip. */
+  private readonly tokenGame = new Map<string, string>();
 
   constructor(deps: GameServiceDeps) {
     this.db = deps.db;
@@ -91,6 +93,7 @@ export class GameService {
       if (!JOINABLE.has(g.status)) throw new GameError('GAME_OVER');
       const { team, token } = await addTeam(this.db, g.id, name);
       this.publish(g.id);
+      this.tokenGame.set(token, g.id);
       return { token, teamId: team.id, gameId: g.id };
     });
   }
@@ -106,6 +109,7 @@ export class GameService {
       const g = await loadGame(this.db, again.gameId);
       if (!g) throw new GameError('BAD_TOKEN');
       const [teams, answers] = await Promise.all([listTeams(this.db, g.id), listAnswers(this.db, g.id)]);
+      this.tokenGame.set(token, g.id);
       return { gameId: g.id, teamId: again.team.id, state: teamState(g, again.team, answers, teams, this.now()) };
     });
   }
@@ -115,14 +119,18 @@ export class GameService {
   }
 
   async answer(token: string, questionIndex: number, choice: number): Promise<void> {
-    const found = await teamByToken(this.db, token);
-    if (!found) throw new GameError('BAD_TOKEN');
-    await withLock(found.gameId, async () => {
-      const now = this.now();
+    // The deadline is judged by arrival time (spec §5), not by when the game lock frees up.
+    const receivedAt = this.now();
+    // Known tokens (every socket joins or resumes first) enter the lock queue synchronously, so a
+    // closing timer that fires after this answer arrived is always queued behind it.
+    const gameId = this.tokenGame.get(token) ?? (await teamByToken(this.db, token))?.gameId;
+    if (!gameId) throw new GameError('BAD_TOKEN');
+    await withLock(gameId, async () => {
+      // Re-read under the lock: the team may have been removed while this answer waited.
       const again = await teamByToken(this.db, token);
-      const g = await loadGame(this.db, found.gameId);
-      if (!again || !g) throw new GameError('BAD_TOKEN');
-      machine.checkAnswer(g, again.team, questionIndex, choice, now);
+      const g = await loadGame(this.db, gameId);
+      if (!again || !g || again.gameId !== gameId) throw new GameError('BAD_TOKEN');
+      machine.checkAnswer(g, again.team, questionIndex, choice, receivedAt);
       await upsertAnswer(this.db, { gameId: g.id, teamId: again.team.id, questionIndex, choice });
       this.publish(g.id);
     });

@@ -14,6 +14,7 @@ import { createQuiz } from '../../src/db/quizzes';
 import { signAdminToken } from '../../src/http/auth';
 import { GameService } from '../../src/realtime/service';
 import { attachSockets, type Gateway } from '../../src/realtime/sockets';
+import { withLock } from '../../src/realtime/lock';
 import { createTimers, type Timers } from '../../src/realtime/timers';
 
 const url = process.env.DATABASE_URL_TEST;
@@ -374,5 +375,41 @@ describe.skipIf(!url)('realtime game', () => {
     await expect(service.cancel(g.id)).rejects.toThrow('INVALID');
     const c = await client();
     expect(await ack(c, 'team:join', { code: g.code, name: 'Χ' })).toEqual({ ok: false, error: 'GAME_OVER' });
+  });
+
+  it('answers are judged by arrival time, not by when the game lock frees up', async () => {
+    const quiz = await createQuiz(pool, quizInput);
+    const g = await createGame(pool, quiz);
+    let clock = Date.now();
+    const closer: { fire?: () => void } = {};
+    const manualTimers: Timers = { schedule: (_id, _at, fn) => void (closer.fire = fn), cancel() {}, cancelAll() {} };
+    const svc = new GameService({ db: pool, timers: manualTimers, now: () => clock });
+    const { token } = await svc.join(g.code, 'Ακριβείς');
+    const { token: lateToken } = await svc.join(g.code, 'Αργοί');
+    await svc.host('start', g.id, 0);
+    const endsAt = (await loadGame(pool, g.id))!.questionEndsAt!;
+
+    // Another operation holds the game lock; while it runs, the clock moves well past the grace period.
+    let release!: () => void;
+    const held = withLock(g.id, () => new Promise<void>((r) => (release = r)));
+    clock = endsAt + 300; // arrives within the 500 ms grace
+    const inTime = svc.answer(token, 0, 1);
+    clock = endsAt + 600; // arrives after the grace
+    const tooLate = svc.answer(lateToken, 0, 1);
+    const settled = Promise.allSettled([inTime, tooLate]);
+    // the closing timer fires after both answers arrived: it must be judged after them
+    expect(closer.fire).toBeDefined();
+    closer.fire!();
+    await wait(200); // both are now queued behind the held lock
+    clock = endsAt + 2_000;
+    release();
+    await held;
+    const [a, b] = await settled;
+    expect(a).toEqual({ status: 'fulfilled', value: undefined });
+    expect(b.status).toBe('rejected');
+    expect((b as PromiseRejectedResult).reason).toMatchObject({ code: 'TIME_UP' });
+    const snap = await svc.snapshots(g.id);
+    expect(snap.host.answeredCount).toBe(1);
+    expect(snap.host.status).toBe('question_closed');
   });
 });

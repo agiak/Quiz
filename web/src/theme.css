@@ -1,0 +1,79 @@
+/* Single dark theme on purpose (TV studio at night). */
+:root {
+  color-scheme: dark;
+  --ink: #090c22;
+  --stage: #11173f;
+  --stage-2: #18205a;
+  --line: #3b4796;
+  --brass: #e6b44c;
+  --brass-ink: #1d1503;
+  --text: #eef0ff;
+  --muted: #98a1d4;
+  --ok: #2fbf71;
+  --bad: #e2485a;
+  --display: "Advent Pro", "Arial Narrow", system-ui, sans-serif;
+  --body: "Commissioner", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% -5%, rgba(110,130,255,.22), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 85% 105%, rgba(230,180,76,.10), transparent 70%),
+    #090c22;
+  color: var(--text);
+  font: 400 16px/1.5 var(--body);
+  padding-block: 20px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--display); line-height: 1.1; margin: 0 0 .5em; text-wrap: balance; }
+h1 { font-size: clamp(28px, 4.4vw, 44px); font-weight: 700; letter-spacing: .02em; }
+.page { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.page.wide { max-width: 1120px; }
+.muted { color: var(--muted); }
+
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+button, .btn {
+  font: 600 16px/1 var(--body);
+  color: var(--brass-ink);
+  background: var(--brass);
+  border: 0;
+  border-radius: 999px;
+  padding: 14px 22px;
+  min-height: 44px;
+  cursor: pointer;
+  transition: filter .15s;
+}
+button:hover:not(:disabled) { filter: brightness(1.08); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.secondary {
+  color: var(--text);
+  background: var(--stage);
+  border: 1.5px solid var(--line);
+}
+button.secondary:hover:not(:disabled) { border-color: var(--brass); filter: none; }
+
+input, select, textarea {
+  font: 400 16px/1.3 var(--body);
+  color: var(--text);
+  background: var(--stage);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-height: 44px;
+  width: 100%;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { border-color: var(--brass); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

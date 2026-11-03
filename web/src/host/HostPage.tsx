@@ -103,9 +103,12 @@ function HostScreen({ token, gameId }: { token: string; gameId: string }) {
       if (e.key !== 'ArrowRight' && e.key !== ' ') return;
       if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
       const t = e.target as HTMLElement | null;
-      // Only the primary button may share the shortcut: on any other control (e.g. a team's ×),
-      // Space must keep its normal meaning and never start the game.
-      if (t && t.closest('button, a, summary, [role=button], input, textarea, select, [contenteditable], [data-nokeys]') && !t.closest('[data-primary]')) return;
+      // Never while typing or inside an in-page confirm.
+      if (t && t.closest('input, textarea, select, [contenteditable], [data-nokeys]')) return;
+      // Space activates the focused control natively: on any control but the primary button
+      // (e.g. a team's ×) it must keep that meaning and never start the game.
+      // → has no native meaning on a button, so it always works.
+      if (e.key === ' ' && t && t.closest('button, a, summary, [role=button]') && !t.closest('[data-primary]')) return;
       e.preventDefault();
       act(primary);
     };
@@ -140,7 +143,14 @@ function HostScreen({ token, gameId }: { token: string; gameId: string }) {
         )}
       </div>
 
-      <footer className="host-bar">
+      <footer
+        className="host-bar"
+        onClick={(e) => {
+          // After a mouse click (detail > 0) drop focus, so Space works as the shortcut again.
+          // Keyboard activation (detail 0) keeps focus where the user put it.
+          if (e.detail > 0 && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        }}
+      >
         <span className="host-bar-info">
           {state && (
             <>

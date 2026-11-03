@@ -212,7 +212,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .confetti { display: none; }
-  .countdown.low .secs { animation: none; }
+  .countdown.low .secs,
+  .conn-big::before,
+  .ranking.finished .podium.revealed,
+  .podium.revealed,
+  .board li.new,
+  .chip,
+  .tile.correct,
+  .reveal-answer .qbox { animation: none; }
+  .countdown .arc, .tile, .host-bar { transition: none; }
 }
 
 /* Small windows (testing on a laptop or phone). */

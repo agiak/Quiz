@@ -102,8 +102,13 @@ export default function QuizEditor() {
         : await api<Quiz>('/quizzes', { method: 'POST', body: r.input, admin: true });
       setSavedSig(sig);
       setSavedCount(quiz.questions.length);
-      setStatus({ kind: 'ok', text: 'Αποθηκεύτηκε.' });
-      if (!id) navigate(`/admin/quizzes/${quiz.id}`, { replace: true });
+      if (id) {
+        setStatus({ kind: 'ok', text: 'Αποθηκεύτηκε.' });
+      } else {
+        // The editor reloads under the new URL; a stale status would show in its loading view.
+        setStatus(null);
+        navigate(`/admin/quizzes/${quiz.id}`, { replace: true });
+      }
     } catch (err) {
       setStatus({ kind: 'error', text: fail(err) });
     } finally {

@@ -24,8 +24,8 @@ export default function Login({ notice, onLogin }: Props) {
       const { token } = await api<{ token: string }>('/admin/login', { body: { password } });
       // Came here from the presenter screen: go back to it.
       const next = params.get('next');
-      if (next && /^\/host\/[\w-]+$/.test(next)) navigate(next, { replace: true });
       onLogin(token);
+      if (next && /^\/host\/[\w-]+$/.test(next)) navigate(next, { replace: true });
     } catch (err) {
       setError(errorText(err));
       setBusy(false);

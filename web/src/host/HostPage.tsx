@@ -103,7 +103,9 @@ function HostScreen({ token, gameId }: { token: string; gameId: string }) {
       if (e.key !== 'ArrowRight' && e.key !== ' ') return;
       if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
       const t = e.target as HTMLElement | null;
-      if (t && (t.closest('input, textarea, select, [contenteditable]') || t.closest('[data-nokeys]'))) return;
+      // Only the primary button may share the shortcut: on any other control (e.g. a team's ×),
+      // Space must keep its normal meaning and never start the game.
+      if (t && t.closest('button, a, summary, [role=button], input, textarea, select, [contenteditable], [data-nokeys]') && !t.closest('[data-primary]')) return;
       e.preventDefault();
       act(primary);
     };
@@ -159,7 +161,7 @@ function HostScreen({ token, gameId }: { token: string; gameId: string }) {
             <span className="host-hint">Καμία ομάδα ακόμη: μπορείτε να ξεκινήσετε και έτσι</span>
           )}
           {primary && (
-            <button type="button" className="primary" disabled={disabled} onClick={() => act(primary)}>
+            <button type="button" className="primary" data-primary disabled={disabled} onClick={() => act(primary)}>
               {PRIMARY_LABEL[primary]} <kbd aria-hidden="true">→</kbd>
             </button>
           )}

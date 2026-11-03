@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ERROR_TEXT, type ErrorCode } from '../../../shared/errors';
 import type { TeamState } from '../../../shared/types';
 import { remainingMs } from '../lib/clock';
@@ -16,6 +16,8 @@ export default function Answering({ state, offset, emit }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [local, setLocal] = useState<{ index: number; choice: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const attemptRef = useRef(0);
+  const indexRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 250);
@@ -23,6 +25,7 @@ export default function Answering({ state, offset, emit }: Props) {
   }, []);
 
   const idx = current?.index;
+  indexRef.current = idx;
   const serverChoice = current?.myChoice;
   useEffect(() => {
     setLocal(null);
@@ -38,10 +41,13 @@ export default function Answering({ state, offset, emit }: Props) {
   async function choose(choice: number) {
     if (!current || choice === shown) return;
     const questionIndex = current.index;
+    const attempt = ++attemptRef.current;
     setLocal({ index: questionIndex, choice });
     setError(null);
     const ack = await emit('team:answer', { questionIndex, choice });
     if (!ack.ok) {
+      // Ignore stale failures: a newer tap superseded this one, or the question moved on.
+      if (attempt !== attemptRef.current || indexRef.current !== questionIndex) return;
       setLocal(null);
       setError(ERROR_TEXT[ack.error as ErrorCode]);
     }
